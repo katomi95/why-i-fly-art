@@ -193,12 +193,47 @@ let bgTop = 0, curBg = 'black', baseBg = 'black';
 let bufLines = [''], lastKind = null;
 let started = false;
 
+/* ------------------------------------------------------------- カメラ */
+/* 縦長画面では寄り引きを控えめにする（横移動は切る） */
+const portrait = matchMedia('(max-aspect-ratio: 1/1)');
+const CAM_BASE = { s: 1.04, x: 0, y: 0 };
+
+function camTransform(c) {
+  if (portrait.matches) {
+    return 'scale(' + (1 + (c.s - 1) * 0.45) + ') translate(0%, ' + (c.y * 0.45) + '%)';
+  }
+  return 'scale(' + c.s + ') translate(' + c.x + '%, ' + c.y + '%)';
+}
+
+/* 背景切替時、入ってくる層のカメラを基準位置へ瞬時に戻す */
+function resetCam(layer) {
+  const cam = layer.querySelector('.cam');
+  cam.style.transition = 'none';
+  cam.style.transform = camTransform(CAM_BASE);
+  void cam.offsetWidth;
+  cam.style.transition = '';
+}
+
+function moveCam(c) {
+  const cam = bgLayers[bgTop].querySelector('.cam');
+  if (c.d === 0) {
+    cam.style.transition = 'none';
+    cam.style.transform = camTransform(c);
+    void cam.offsetWidth;
+    cam.style.transition = '';
+  } else {
+    cam.style.transitionDuration = (c.d || 6) + 's';
+    cam.style.transform = camTransform(c);
+  }
+}
+
 /* ------------------------------------------------------------- 背景 */
 function setBg(name, opt) {
   if (name === curBg) return;
   curBg = name;
   const cur = bgLayers[bgTop], nxt = bgLayers[1 - bgTop];
   nxt.className = 'bg bg-' + name + ((opt && opt.slow) ? ' slow' : '');
+  resetCam(nxt);
   cur.classList.toggle('slow', !!(opt && opt.slow));
   void nxt.offsetWidth;
   if (opt && opt.instant) {
@@ -378,6 +413,8 @@ function exec(c) {
       A.tone(110, 2.4, 0.055, 0, 'sine');
       return 'go';
     }
+
+    case 'cam': moveCam(c); return 'go';
 
     case 'sfx': A.play(c.v); return 'go';
     case 'bgm': A.bgm(c.v); return 'go';

@@ -6,13 +6,19 @@
 /* ---------------------------------------------------------------- DOM */
 const $ = (id) => document.getElementById(id);
 const bgLayers = [$('bgA'), $('bgB')];
-const charaEl = $('chara');
 const whyEl = $('why'), whyList = $('whyList');
 const msgEl = $('msg'), whoEl = $('who'), textEl = $('text'), nextEl = $('next');
 const bigEl = $('big'), bigInner = $('bigInner');
 const paperEl = $('paper'), paperInner = $('paperInner');
 const choicesEl = $('choices');
 const titleEl = $('title'), endEl = $('endcard');
+
+/* 素の背景 → イリスが描き込まれた一枚絵 */
+const IRIS_BG = {
+  road_eve:   'road_eve_iris',
+  road_dusk:  'road_dusk_iris',
+  road_night: 'road_night_iris'
+};
 
 /* ---------------------------------------------------------------- 音 */
 const A = {
@@ -183,7 +189,7 @@ const whyLi = (key) => whyList.querySelector('li[data-key="' + key + '"]');
 let idx = 0;
 let typing = false, typeTimer = null, pending = null;
 let awaitInput = false, blocked = false, choosing = false;
-let bgTop = 0, curBg = 'black';
+let bgTop = 0, curBg = 'black', baseBg = 'black';
 let bufLines = [''], lastKind = null;
 let started = false;
 
@@ -339,14 +345,16 @@ function showChoice(c) {
 function exec(c) {
   switch (c.k) {
     case 'bg':
+      baseBg = c.v;
       setBg(c.v, c);
       if (paperEl.classList.contains('on')) paperEl.classList.remove('on');
       bufLines = ['']; lastKind = null;
       return 'go';
 
     case 'chara':
-      if (c.v) { charaEl.dataset.emo = c.e || 'calm'; charaEl.classList.add('on'); }
-      else charaEl.classList.remove('on');
+      /* 立ち絵は持たず、人物が描き込まれた一枚絵に差し替える */
+      if (c.v) setBg(c.e === 'cry_close' ? 'cry_close' : (IRIS_BG[baseBg] || baseBg));
+      else setBg(baseBg);
       return 'go';
 
     case 'panel':
@@ -404,7 +412,6 @@ function exec(c) {
     case 'title_end':
       msgEl.classList.remove('on');
       whyEl.classList.remove('on');
-      charaEl.classList.remove('on');
       endEl.classList.add('on');
       A.bgm('stop');
       return 'pause';
@@ -445,7 +452,8 @@ document.addEventListener('keydown', e => {
 /* 背景画像を先読みしておく（場面転換での出遅れ防止） */
 function preloadBackgrounds() {
   const names = ['night_field','runway_dusk','morning_base','apron','base_dusk',
-                 'road_eve','road_dusk','road_night','barracks','mess','hq','shelter'];
+                 'road_eve','road_dusk','road_night','barracks','mess','hq','shelter',
+                 'road_eve_iris','road_dusk_iris','road_night_iris','cry_close'];
   names.forEach((n, i) => setTimeout(() => {
     const img = new Image();
     img.src = 'assets/bg_' + n + '.jpg';

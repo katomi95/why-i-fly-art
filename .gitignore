@@ -1,0 +1,17 @@
+# OS / クラウド同期が作るファイル
+.DS_Store
+Thumbs.db
+desktop.ini
+*.tmp
+*~
+
+# エディタ
+.vscode/
+.idea/
+.claude/
+
+# 依存関係（本作では未使用）
+node_modules/
+
+# 公開に必要なファイル（index.html / style.css / script.js / story.js / .nojekyll）は
+# いっさい除外しないこと。除外すると GitHub Pages で何も表示されなくなる。

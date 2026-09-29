@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>ただ雲は流れて ｜ WHY I FLY（イラスト版）</title>
+<meta name="description" content="敗戦間近の架空国家。特攻を命じられた少年兵と、それを否定しつづける女性の、五日間の会話劇。">
+<meta name="theme-color" content="#07090c">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="game">
+
+  <!-- ============ 背景 ============ -->
+  <div id="bgA" class="bg bg-black"></div>
+  <div id="bgB" class="bg bg-black"></div>
+  <div id="grain"></div>
+  <div id="vignette"></div>
+
+  <!-- ============ 立ち絵 ============ -->
+  <div id="chara" data-emo="calm">
+    <img class="sp calm"      src="assets/iris_calm.png"      alt="" decoding="async">
+    <img class="sp cry"       src="assets/iris_cry.png"       alt="" decoding="async">
+    <img class="sp cry_close" src="assets/iris_cry_close.png" alt="" decoding="async">
+  </div>
+
+  <!-- ============ WHY I FIGHT ============ -->
+  <aside id="why" aria-hidden="true">
+    <h2>WHY<span> I </span>FIGHT</h2>
+    <ul id="whyList"></ul>
+  </aside>
+
+  <!-- ============ 大文字表示 ============ -->
+  <div id="big"><div id="bigInner"></div></div>
+
+  <!-- ============ 紙 ============ -->
+  <div id="paper"><div id="paperInner"></div></div>
+
+  <!-- ============ 選択肢 ============ -->
+  <div id="choices"></div>
+
+  <!-- ============ メッセージ ============ -->
+  <div id="msg">
+    <div id="who"></div>
+    <div id="text"></div>
+    <div id="next">▼</div>
+  </div>
+
+  <!-- ============ タイトル ============ -->
+  <div id="title">
+    <div class="titleBox">
+      <p class="ttl-sub">WHY I FLY</p>
+      <h1 class="ttl-main">ただ雲は流れて</h1>
+      <p class="ttl-edition">ILLUSTRATED EDITION</p>
+      <p class="ttl-lead">敗戦間近の、ある架空の国。<br>特攻を命じられた少年兵と、<br>それを否定しつづける女性の、五日間。</p>
+      <button id="startBtn" type="button">は じ め る</button>
+      <p class="ttl-note">
+        プレイ時間 約15〜20分／クリックまたはタップで進みます<br>
+        この作品は特攻を美化しません。登場する国家・軍隊・作戦・人物はすべて架空であり、<br>実在の戦争・組織とは関係ありません。
+      </p>
+    </div>
+  </div>
+
+  <!-- ============ エンド ============ -->
+  <div id="endcard">
+    <div class="endBox">
+      <p class="end-sub">WHY I FLY</p>
+      <h2 class="end-main">ただ雲は流れて</h2>
+      <p class="end-word">END</p>
+      <button id="replayBtn" type="button">もう一度見る</button>
+    </div>
+  </div>
+
+  <button id="sndBtn" type="button" title="音">♪</button>
+  <div id="fade"></div>
+</div>
+
+<script src="story.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

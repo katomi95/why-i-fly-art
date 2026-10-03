@@ -268,6 +268,7 @@ const STORY = [
 
   BG('apron'),
   SFX('engine_start'),
+  BGM('grief'),
   N('昼過ぎ。'),
   N('三機が並ぶ。'),
   N('整備兵が布で風防を拭き、油の匂いが風に混ざる。'),
@@ -306,6 +307,7 @@ const STORY = [
   W_(600),
 
   BG('road_eve'),
+  BGM('quiet'),
   CH('iris', 'calm'),
   N('夕方。俺はまた、あの道を歩いていた。'),
   N('来ない、と言ったのに。'),
@@ -438,6 +440,7 @@ const STORY = [
   W_(700),
 
   BG('hq'),
+  BGM('betrayal'),
   N('昼。書類を届けに司令部へ行った。'),
   N('廊下の突き当たりの部屋の戸が、少し開いていた。'),
   N('中から声がした。'),
@@ -475,6 +478,7 @@ const STORY = [
   W_(900),
 
   BG('road_eve'),
+  BGM('quiet'),
   CH('iris', 'calm'),
   N('夕方。'),
   N('気がつくと、俺はあの道にいた。'),
@@ -726,6 +730,7 @@ const STORY = [
   W_(700),
 
   BG('barracks'),
+  BGM('grief'),
   N('宿舎に戻る。'),
   N('八床のうち、二つがまた空いていた。今日の午後に出たらしい。'),
   N('掲示板を見るのをやめて、寝台に横になった。'),
@@ -748,6 +753,7 @@ const STORY = [
   BIG('DAY 5', 2200),
 
   BG('morning_base'),
+  BGM('quiet'),
   SFX('wind'),
   N('朝。'),
   N('掲示板の前に、人が集まっていた。'),
@@ -1029,6 +1035,7 @@ const STORY = [
   W_(2000),
 
   BG('black'),
+  BGM('end'),
   W_(1800),
   { k: 'title_end' },
   END(),

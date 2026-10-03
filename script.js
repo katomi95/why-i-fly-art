@@ -20,6 +20,33 @@ const IRIS_BG = {
   road_night: 'road_night_iris'
 };
 
+/* ----------------------------------------------------------- 音楽素材 */
+/* ヘ短調（自然的短音階）。主和音は F-Ab-C */
+const PITCH = {
+  F1: 43.65, Ab1: 51.91, C2: 65.41, F2: 87.31, Gb2: 92.50, Ab2: 103.83,
+  C4: 261.63, Eb4: 311.13, F4: 349.23, Ab4: 415.30, Bb4: 466.16, C5: 523.25
+};
+
+/* 主題：下降する6音。m=旋律声部 / t=それに添える主和音の構成音（tintinnabuli）
+   「調性はあるのに、どこへも進まない」響きをつくる */
+const THEME = [
+  { m: 'C5',  t: 'Ab4', at: 0.0,  len: 5.5 },
+  { m: 'Bb4', t: 'Ab4', at: 2.4,  len: 5.0 },
+  { m: 'Ab4', t: 'F4',  at: 4.6,  len: 5.5 },
+  { m: 'F4',  t: 'C4',  at: 7.4,  len: 6.5 },
+  { m: 'Eb4', t: 'C4',  at: 10.6, len: 6.0 },
+  { m: 'F4',  t: 'C4',  at: 13.4, len: 9.0 }
+];
+
+/* 場面別。rate は主題の間延び率、themeVol 0 で主題を鳴らさない */
+const BGM_MODES = {
+  quiet:    { drone: ['F1', 'C2'],       droneVol: .040, themeVol: .055, rate: 1.0,  gap: 46000 },
+  grief:    { drone: ['F1', 'Ab1', 'C2'],droneVol: .050, themeVol: .036, rate: 1.3,  gap: 72000 },
+  betrayal: { drone: ['F2', 'Gb2'],      droneVol: .030, themeVol: 0,    rate: 1.0,  gap: 0 },
+  final:    { drone: ['F1', 'C2'],       droneVol: .044, themeVol: .046, rate: 1.9,  gap: 80000 },
+  end:      { drone: ['F1', 'C2'],       droneVol: .030, themeVol: .060, rate: 1.35, gap: 0, once: true }
+};
+
 /* ---------------------------------------------------------------- 音 */
 const A = {
   ac: null, master: null, bed: null, muted: false,
@@ -60,6 +87,18 @@ const A = {
     this.bgmGain = ac.createGain();
     this.bgmGain.gain.value = 0.0;
     this.bgmGain.connect(this.master);
+
+    /* ドローン用のバス：ゆっくり開閉するローパスで呼吸させる */
+    this.droneBus = ac.createGain();
+    this.droneBus.gain.value = 1;
+    const dlp = ac.createBiquadFilter();
+    dlp.type = 'lowpass'; dlp.frequency.value = 520; dlp.Q.value = 0.3;
+    const dlfo = ac.createOscillator(); dlfo.frequency.value = 0.035;
+    const dlg = ac.createGain(); dlg.gain.value = 190;
+    dlfo.connect(dlg); dlg.connect(dlp.frequency);
+    this.droneBus.connect(dlp); dlp.connect(this.bgmGain);
+    dlfo.start();
+    this.droneNodes = [];
   },
 
   mute(on) {
@@ -148,28 +187,85 @@ const A = {
     }
   },
 
+  /* 減衰する撥弦・鍵盤的な音。倍音を重ねてサンプルなしで質感を出す */
+  piano(freq, dur, vol, delay) {
+    if (!this.ac) return;
+    const ac = this.ac, t0 = ac.currentTime + (delay || 0);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.04);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    [[1, 1], [2, .24], [3, .09], [4.02, .04]].forEach(([mul, amp]) => {
+      const o = ac.createOscillator(); o.type = 'sine';
+      o.frequency.value = freq * mul;
+      const og = ac.createGain(); og.gain.value = amp;
+      o.connect(og); og.connect(g);
+      o.start(t0); o.stop(t0 + dur + 0.05);
+    });
+    const lp = ac.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 2400;
+    g.connect(lp); lp.connect(this.bgmGain);
+  },
+
+  startDrone(names, vol) {
+    const ac = this.ac, t0 = ac.currentTime;
+    names.forEach((n, i) => {
+      [-6, 6].forEach(det => {
+        const o = ac.createOscillator(); o.type = 'sine';
+        o.frequency.value = PITCH[n]; o.detune.value = det;
+        const g = ac.createGain();
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(vol / (i + 1.5), t0 + 7);
+        o.connect(g); g.connect(this.droneBus);
+        o.start(t0);
+        this.droneNodes.push({ o, g });
+      });
+    });
+  },
+
+  stopDrone(fade) {
+    if (!this.ac) return;
+    const t = this.ac.currentTime;
+    this.droneNodes.forEach(({ o, g }) => {
+      g.gain.cancelScheduledValues(t);
+      g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + fade);
+      try { o.stop(t + fade + 0.2); } catch (e) {}
+    });
+    this.droneNodes = [];
+  },
+
+  /* 主題を一度ぶん鳴らす。各音に主和音の構成音を一つだけ添える */
+  phrase(vol, rate) {
+    THEME.forEach(n => {
+      this.piano(PITCH[n.m], n.len * rate, vol, n.at * rate);
+      this.piano(PITCH[n.t], n.len * rate * .9, vol * .42, n.at * rate + 0.09);
+    });
+  },
+
   bgm(mode) {
     if (!this.ac) return;
     const ac = this.ac;
     clearInterval(this.bgmTimer); this.bgmTimer = null;
+    clearTimeout(this.bgmKick); this.bgmKick = null;
+
     if (mode === 'stop') {
-      this.bgmGain.gain.setTargetAtTime(0.0001, ac.currentTime, 1.1);
+      this.stopDrone(3.4);
+      this.bgmGain.gain.setTargetAtTime(0.0001, ac.currentTime, 1.2);
       return;
     }
+    const m = BGM_MODES[mode];
+    if (!m) return;
+
+    this.stopDrone(2.6);
     this.bgmGain.gain.setTargetAtTime(1, ac.currentTime, 2.0);
-    /* ごく短い動機。ほとんど鳴らない。 */
-    const scaleA = [174.61, 196.00, 207.65, 233.08, 261.63, 293.66, 311.13];  // ヘ短調まわり
-    const scaleB = [116.54, 130.81, 155.56, 174.61];
-    const set = mode === 'final' ? scaleB : scaleA;
-    const gap = mode === 'final' ? 6200 : 3400;
-    const vol = mode === 'final' ? 0.030 : 0.038;
-    const fire = () => {
-      const f = set[Math.floor(Math.random() * set.length)];
-      this.tone(f, mode === 'final' ? 8 : 5, vol, 0, 'sine', this.bgmGain);
-      if (Math.random() < 0.45) this.tone(f * 2, 3.4, vol * 0.4, 0.7, 'sine', this.bgmGain);
-    };
-    fire();
-    this.bgmTimer = setInterval(fire, gap);
+    this.startDrone(m.drone, m.droneVol);
+
+    if (m.themeVol > 0) {
+      const play = () => this.phrase(m.themeVol, m.rate);
+      this.bgmKick = setTimeout(play, m.once ? 1400 : 6000);
+      if (!m.once && m.gap) this.bgmTimer = setInterval(play, m.gap);
+    }
   }
 };
 
@@ -450,7 +546,6 @@ function exec(c) {
       msgEl.classList.remove('on');
       whyEl.classList.remove('on');
       endEl.classList.add('on');
-      A.bgm('stop');
       return 'pause';
 
     case 'end':

@@ -47,8 +47,20 @@ const BGM_MODES = {
   end:      { drone: ['F1', 'C2'],       droneVol: .030, themeVol: .060, rate: 1.35, gap: 0, once: true }
 };
 
+/* 楽曲版（CC0 / Musopen の Chopin 録音）。生成音と切り替えて使う */
+const TRACKS = {
+  quiet:    'assets/music/quiet.mp3',     /* 夜想曲 Op.55-1 ヘ短調 */
+  grief:    'assets/music/grief.mp3',     /* 夜想曲 Op.27-1 嬰ハ短調 */
+  betrayal: 'assets/music/betrayal.mp3',  /* 前奏曲 Op.28-6 ロ短調 */
+  final:    'assets/music/final.mp3',     /* 夜想曲 Op.9-1 変ロ短調 */
+  end:      'assets/music/end.mp3'        /* 夜想曲 嬰ハ短調 遺作 Lento con gran espressione */
+};
+const TRACK_VOL = 0.34;   /* ナレーションの下に敷く音量 */
+
 /* ---------------------------------------------------------------- 音 */
 const A = {
+  musicMode: 'piano',   /* 'piano' = 楽曲版 / 'synth' = 生成音 */
+  cur: null, els: null,
   ac: null, master: null, bed: null, muted: false,
   bgmGain: null, bgmTimer: null, bgmOsc: [], noiseBuf: null, sfx: [],
 
@@ -243,9 +255,66 @@ const A = {
     });
   },
 
+  /* ---- 楽曲版 ---- */
+  /* 1曲ずつ遅延読み込みする。曲の切れ目はゲイン操作で柔らかくつなぐ */
+  trackFor(mode) {
+    if (!this.els) this.els = {};
+    if (this.els[mode]) return this.els[mode];
+    const src = TRACKS[mode];
+    if (!src) return null;
+    const el = new Audio();
+    el.src = src; el.loop = true; el.preload = 'none'; el.crossOrigin = 'anonymous';
+    const g = this.ac.createGain();
+    g.gain.value = 0.0001;
+    try {
+      this.ac.createMediaElementSource(el).connect(g);
+      g.connect(this.master);
+    } catch (e) { return null; }
+    /* ループの継ぎ目：終わりで絞り、頭で戻す */
+    el.addEventListener('timeupdate', () => {
+      if (!el.duration || this.cur !== mode) return;
+      const left = el.duration - el.currentTime;
+      const want = (left < 2.5) ? TRACK_VOL * Math.max(left / 2.5, 0.0001)
+                 : (el.currentTime < 2.5 ? TRACK_VOL * Math.max(el.currentTime / 2.5, 0.0001)
+                 : TRACK_VOL);
+      g.gain.setTargetAtTime(want, this.ac.currentTime, 0.4);
+    });
+    this.els[mode] = { el, g };
+    return this.els[mode];
+  },
+
+  fadeTrack(mode, to, sec) {
+    const t = this.els && this.els[mode];
+    if (!t) return;
+    const now = this.ac.currentTime;
+    t.g.gain.cancelScheduledValues(now);
+    t.g.gain.setValueAtTime(Math.max(t.g.gain.value, 0.0001), now);
+    /* setTarget のほうが前半が無音にならず、立ち上がりが自然になる */
+    t.g.gain.setTargetAtTime(Math.max(to, 0.00001), now, sec / 3.2);
+    if (to <= 0.0001) setTimeout(() => { try { t.el.pause(); } catch (e) {} }, sec * 1000 + 400);
+  },
+
+  playTrack(mode) {
+    if (this.cur && this.cur !== mode) this.fadeTrack(this.cur, 0, 2.6);
+    this.cur = mode || null;
+    if (!mode) return;
+    const t = this.trackFor(mode);
+    if (!t) return;
+    t.el.play().catch(() => {});
+    this.fadeTrack(mode, TRACK_VOL, 3.0);
+  },
+
   bgm(mode) {
     if (!this.ac) return;
     const ac = this.ac;
+    if (this.musicMode === 'piano') {
+      clearInterval(this.bgmTimer); this.bgmTimer = null;
+      clearTimeout(this.bgmKick); this.bgmKick = null;
+      this.stopDrone(2.0);
+      this.playTrack(mode === 'stop' ? null : mode);
+      return;
+    }
+    this.playTrack(null);
     clearInterval(this.bgmTimer); this.bgmTimer = null;
     clearTimeout(this.bgmKick); this.bgmKick = null;
 
@@ -591,6 +660,25 @@ function preloadBackgrounds() {
     img.src = 'assets/bg_' + n + '.jpg';
   }, i * 160));
 }
+
+/* タイトル画面の音楽切り替え */
+document.querySelectorAll('#musicPick button').forEach(b => {
+  b.addEventListener('click', ev => {
+    ev.stopPropagation();
+    A.musicMode = b.dataset.m;
+    document.querySelectorAll('#musicPick button')
+      .forEach(x => x.classList.toggle('on', x === b));
+    try { localStorage.setItem('wif_music', A.musicMode); } catch (e) {}
+  });
+});
+try {
+  const saved = localStorage.getItem('wif_music');
+  if (saved === 'synth' || saved === 'piano') {
+    A.musicMode = saved;
+    document.querySelectorAll('#musicPick button')
+      .forEach(x => x.classList.toggle('on', x.dataset.m === saved));
+  }
+} catch (e) {}
 
 $('startBtn').addEventListener('click', ev => {
   ev.stopPropagation();

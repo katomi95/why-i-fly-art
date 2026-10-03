@@ -21,15 +21,16 @@ const IRIS_BG = {
   road_set:  { calm: 'road_eve_block', cry: 'road_eve_alone' }
 };
 
-/* BGM（CC0 / Musopen のショパン録音） */
+/* BGM（CC0 / Musopen のショパン録音）
+   vol  … 曲ごとの音量差をならして出力 RMS を約 0.034 に揃えた実測値
+   skip … 録音の頭に入っている無音。ここまで飛ばしてから鳴らす */
 const TRACKS = {
-  quiet:    'assets/music/quiet.mp3',     /* 夜想曲 Op.55-1 ヘ短調 */
-  grief:    'assets/music/grief.mp3',     /* 夜想曲 Op.27-1 嬰ハ短調 */
-  betrayal: 'assets/music/betrayal.mp3',  /* 前奏曲 Op.28-6 ロ短調 */
-  final:    'assets/music/final.mp3',     /* 夜想曲 Op.9-1 変ロ短調 */
-  end:      'assets/music/end.mp3'        /* 夜想曲 嬰ハ短調 遺作 Lento con gran espressione */
+  quiet:    { src: 'assets/music/quiet.mp3',    vol: 0.93, skip: 2.3 }, /* 夜想曲 Op.55-1 ヘ短調 */
+  grief:    { src: 'assets/music/grief.mp3',    vol: 1.40, skip: 1.4 }, /* 夜想曲 Op.27-1 嬰ハ短調 */
+  betrayal: { src: 'assets/music/betrayal.mp3', vol: 0.74, skip: 1.0 }, /* 前奏曲 Op.28-6 ロ短調 */
+  final:    { src: 'assets/music/final.mp3',    vol: 0.68, skip: 0.5 }, /* 夜想曲 Op.9-1 変ロ短調 */
+  end:      { src: 'assets/music/end.mp3',      vol: 0.51, skip: 0.6 }  /* 夜想曲 嬰ハ短調 遺作 */
 };
-const TRACK_VOL = 0.34;   /* ナレーションの下に敷く音量 */
 
 /* ---------------------------------------------------------------- 音 */
 const A = {
@@ -162,31 +163,43 @@ const A = {
   },
 
   /* ---- 曲の再生 ---- */
-  /* 1曲ずつ遅延読み込みする。曲の切れ目はゲイン操作で柔らかくつなぐ */
+  /* 1曲ずつ遅延読み込みする。頭の無音を飛ばし、曲ごとの音量差をならす */
   trackFor(mode) {
     if (!this.els) this.els = {};
     if (this.els[mode]) return this.els[mode];
-    const src = TRACKS[mode];
-    if (!src) return null;
+    const def = TRACKS[mode];
+    if (!def) return null;
     const el = new Audio();
-    el.src = src; el.loop = true; el.preload = 'none'; el.crossOrigin = 'anonymous';
+    el.src = def.src; el.loop = false; el.preload = 'none'; el.crossOrigin = 'anonymous';
     const g = this.ac.createGain();
     g.gain.value = 0.0001;
     try {
       this.ac.createMediaElementSource(el).connect(g);
       g.connect(this.master);
     } catch (e) { return null; }
-    /* ループの継ぎ目：終わりで絞り、頭で戻す */
+
+    const t = { el, g, vol: def.vol, skip: def.skip };
+
+    /* 頭の無音を飛ばす */
+    const seek = () => { try { if (el.currentTime < def.skip) el.currentTime = def.skip; } catch (e) {} };
+    el.addEventListener('loadedmetadata', seek);
+
+    /* 終わりまで来たら頭の無音を飛ばして鳴らし直す */
+    el.addEventListener('ended', () => {
+      if (this.cur !== mode) return;
+      try { el.currentTime = def.skip; el.play().catch(() => {}); } catch (e) {}
+      this.fadeTrack(mode, def.vol, 1.8);   /* 終わりぎわに絞った音量を戻す */
+    });
+
+    /* 曲の終わりぎわだけ少し絞って、継ぎ目を柔らげる */
     el.addEventListener('timeupdate', () => {
       if (!el.duration || this.cur !== mode) return;
       const left = el.duration - el.currentTime;
-      const want = (left < 2.5) ? TRACK_VOL * Math.max(left / 2.5, 0.0001)
-                 : (el.currentTime < 2.5 ? TRACK_VOL * Math.max(el.currentTime / 2.5, 0.0001)
-                 : TRACK_VOL);
-      g.gain.setTargetAtTime(want, this.ac.currentTime, 0.4);
+      if (left < 2.5) g.gain.setTargetAtTime(def.vol * Math.max(left / 2.5, 0.0001), this.ac.currentTime, 0.4);
     });
-    this.els[mode] = { el, g };
-    return this.els[mode];
+
+    this.els[mode] = t;
+    return t;
   },
 
   fadeTrack(mode, to, sec) {
@@ -206,8 +219,9 @@ const A = {
     if (!mode) return;
     const t = this.trackFor(mode);
     if (!t) return;
+    try { if (t.el.readyState >= 1 && t.el.currentTime < t.skip) t.el.currentTime = t.skip; } catch (e) {}
     t.el.play().catch(() => {});
-    this.fadeTrack(mode, TRACK_VOL, 3.0);
+    this.fadeTrack(mode, t.vol, 2.4);
   },
 
   bgm(mode) {
@@ -535,7 +549,7 @@ document.addEventListener('keydown', e => {
 function preloadMusic() {
   const order = ['grief', 'betrayal', 'final', 'end'];
   order.forEach((k, i) => setTimeout(() => {
-    fetch(TRACKS[k], { cache: 'force-cache' }).catch(() => {});
+    fetch(TRACKS[k].src, { cache: 'force-cache' }).catch(() => {});
   }, 6000 + i * 9000));
 }
 

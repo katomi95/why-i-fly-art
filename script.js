@@ -15,39 +15,13 @@ const titleEl = $('title'), endEl = $('endcard');
 
 /* 素の背景 → イリスが描き込まれた一枚絵 */
 const IRIS_BG = {
-  road_eve:   'road_eve_iris',
-  road_dusk:  'road_dusk_iris',
-  road_night: 'road_night_iris'
+  road_eve:  { calm: 'road_eve_iris',  cry: 'road_eve_iris' },
+  road_dusk: { calm: 'road_dusk_iris', cry: 'road_dusk_iris' },
+  /* 最後の対面〜見送り。同じ夕方の道で、立っている絵と残される絵を出し分ける */
+  road_set:  { calm: 'road_eve_block', cry: 'road_eve_alone' }
 };
 
-/* ----------------------------------------------------------- 音楽素材 */
-/* ヘ短調（自然的短音階）。主和音は F-Ab-C */
-const PITCH = {
-  F1: 43.65, Ab1: 51.91, C2: 65.41, F2: 87.31, Gb2: 92.50, Ab2: 103.83,
-  C4: 261.63, Eb4: 311.13, F4: 349.23, Ab4: 415.30, Bb4: 466.16, C5: 523.25
-};
-
-/* 主題：下降する6音。m=旋律声部 / t=それに添える主和音の構成音（tintinnabuli）
-   「調性はあるのに、どこへも進まない」響きをつくる */
-const THEME = [
-  { m: 'C5',  t: 'Ab4', at: 0.0,  len: 5.5 },
-  { m: 'Bb4', t: 'Ab4', at: 2.4,  len: 5.0 },
-  { m: 'Ab4', t: 'F4',  at: 4.6,  len: 5.5 },
-  { m: 'F4',  t: 'C4',  at: 7.4,  len: 6.5 },
-  { m: 'Eb4', t: 'C4',  at: 10.6, len: 6.0 },
-  { m: 'F4',  t: 'C4',  at: 13.4, len: 9.0 }
-];
-
-/* 場面別。rate は主題の間延び率、themeVol 0 で主題を鳴らさない */
-const BGM_MODES = {
-  quiet:    { drone: ['F1', 'C2'],       droneVol: .040, themeVol: .055, rate: 1.0,  gap: 46000 },
-  grief:    { drone: ['F1', 'Ab1', 'C2'],droneVol: .050, themeVol: .036, rate: 1.3,  gap: 72000 },
-  betrayal: { drone: ['F2', 'Gb2'],      droneVol: .030, themeVol: 0,    rate: 1.0,  gap: 0 },
-  final:    { drone: ['F1', 'C2'],       droneVol: .044, themeVol: .046, rate: 1.9,  gap: 80000 },
-  end:      { drone: ['F1', 'C2'],       droneVol: .030, themeVol: .060, rate: 1.35, gap: 0, once: true }
-};
-
-/* 楽曲版（CC0 / Musopen の Chopin 録音）。生成音と切り替えて使う */
+/* BGM（CC0 / Musopen のショパン録音） */
 const TRACKS = {
   quiet:    'assets/music/quiet.mp3',     /* 夜想曲 Op.55-1 ヘ短調 */
   grief:    'assets/music/grief.mp3',     /* 夜想曲 Op.27-1 嬰ハ短調 */
@@ -59,7 +33,6 @@ const TRACK_VOL = 0.34;   /* ナレーションの下に敷く音量 */
 
 /* ---------------------------------------------------------------- 音 */
 const A = {
-  musicMode: 'piano',   /* 'piano' = 楽曲版 / 'synth' = 生成音 */
   cur: null, els: null,
   ac: null, master: null, bed: null, muted: false,
   bgmGain: null, bgmTimer: null, bgmOsc: [], noiseBuf: null, sfx: [],
@@ -100,17 +73,6 @@ const A = {
     this.bgmGain.gain.value = 0.0;
     this.bgmGain.connect(this.master);
 
-    /* ドローン用のバス：ゆっくり開閉するローパスで呼吸させる */
-    this.droneBus = ac.createGain();
-    this.droneBus.gain.value = 1;
-    const dlp = ac.createBiquadFilter();
-    dlp.type = 'lowpass'; dlp.frequency.value = 520; dlp.Q.value = 0.3;
-    const dlfo = ac.createOscillator(); dlfo.frequency.value = 0.035;
-    const dlg = ac.createGain(); dlg.gain.value = 190;
-    dlfo.connect(dlg); dlg.connect(dlp.frequency);
-    this.droneBus.connect(dlp); dlp.connect(this.bgmGain);
-    dlfo.start();
-    this.droneNodes = [];
   },
 
   mute(on) {
@@ -199,63 +161,7 @@ const A = {
     }
   },
 
-  /* 減衰する撥弦・鍵盤的な音。倍音を重ねてサンプルなしで質感を出す */
-  piano(freq, dur, vol, delay) {
-    if (!this.ac) return;
-    const ac = this.ac, t0 = ac.currentTime + (delay || 0);
-    const g = ac.createGain();
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.04);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    [[1, 1], [2, .24], [3, .09], [4.02, .04]].forEach(([mul, amp]) => {
-      const o = ac.createOscillator(); o.type = 'sine';
-      o.frequency.value = freq * mul;
-      const og = ac.createGain(); og.gain.value = amp;
-      o.connect(og); og.connect(g);
-      o.start(t0); o.stop(t0 + dur + 0.05);
-    });
-    const lp = ac.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = 2400;
-    g.connect(lp); lp.connect(this.bgmGain);
-  },
-
-  startDrone(names, vol) {
-    const ac = this.ac, t0 = ac.currentTime;
-    names.forEach((n, i) => {
-      [-6, 6].forEach(det => {
-        const o = ac.createOscillator(); o.type = 'sine';
-        o.frequency.value = PITCH[n]; o.detune.value = det;
-        const g = ac.createGain();
-        g.gain.setValueAtTime(0.0001, t0);
-        g.gain.exponentialRampToValueAtTime(vol / (i + 1.5), t0 + 7);
-        o.connect(g); g.connect(this.droneBus);
-        o.start(t0);
-        this.droneNodes.push({ o, g });
-      });
-    });
-  },
-
-  stopDrone(fade) {
-    if (!this.ac) return;
-    const t = this.ac.currentTime;
-    this.droneNodes.forEach(({ o, g }) => {
-      g.gain.cancelScheduledValues(t);
-      g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), t);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + fade);
-      try { o.stop(t + fade + 0.2); } catch (e) {}
-    });
-    this.droneNodes = [];
-  },
-
-  /* 主題を一度ぶん鳴らす。各音に主和音の構成音を一つだけ添える */
-  phrase(vol, rate) {
-    THEME.forEach(n => {
-      this.piano(PITCH[n.m], n.len * rate, vol, n.at * rate);
-      this.piano(PITCH[n.t], n.len * rate * .9, vol * .42, n.at * rate + 0.09);
-    });
-  },
-
-  /* ---- 楽曲版 ---- */
+  /* ---- 曲の再生 ---- */
   /* 1曲ずつ遅延読み込みする。曲の切れ目はゲイン操作で柔らかくつなぐ */
   trackFor(mode) {
     if (!this.els) this.els = {};
@@ -306,35 +212,7 @@ const A = {
 
   bgm(mode) {
     if (!this.ac) return;
-    const ac = this.ac;
-    if (this.musicMode === 'piano') {
-      clearInterval(this.bgmTimer); this.bgmTimer = null;
-      clearTimeout(this.bgmKick); this.bgmKick = null;
-      this.stopDrone(2.0);
-      this.playTrack(mode === 'stop' ? null : mode);
-      return;
-    }
-    this.playTrack(null);
-    clearInterval(this.bgmTimer); this.bgmTimer = null;
-    clearTimeout(this.bgmKick); this.bgmKick = null;
-
-    if (mode === 'stop') {
-      this.stopDrone(3.4);
-      this.bgmGain.gain.setTargetAtTime(0.0001, ac.currentTime, 1.2);
-      return;
-    }
-    const m = BGM_MODES[mode];
-    if (!m) return;
-
-    this.stopDrone(2.6);
-    this.bgmGain.gain.setTargetAtTime(1, ac.currentTime, 2.0);
-    this.startDrone(m.drone, m.droneVol);
-
-    if (m.themeVol > 0) {
-      const play = () => this.phrase(m.themeVol, m.rate);
-      this.bgmKick = setTimeout(play, m.once ? 1400 : 6000);
-      if (!m.once && m.gap) this.bgmTimer = setInterval(play, m.gap);
-    }
+    this.playTrack(mode === 'stop' ? null : mode);
   }
 };
 
@@ -553,8 +431,10 @@ function exec(c) {
 
     case 'chara':
       /* 立ち絵は持たず、人物が描き込まれた一枚絵に差し替える */
-      if (c.v) setBg(c.e === 'cry_close' ? 'cry_close' : (IRIS_BG[baseBg] || baseBg));
-      else setBg(baseBg);
+      if (!c.v) { setBg(baseBg); return 'go'; }
+      if (c.e === 'cry_close') { setBg('cry_close'); return 'go'; }
+      const map = IRIS_BG[baseBg];
+      setBg((map && map[c.e || 'calm']) || baseBg);
       return 'go';
 
     case 'panel':
@@ -651,39 +531,29 @@ document.addEventListener('keydown', e => {
 
 /* ------------------------------------------------------------- 起動 */
 /* 背景画像を先読みしておく（場面転換での出遅れ防止） */
+/* 曲は1曲あたり数MBあるので、開始後に順に取りにいって場面に間に合わせる */
+function preloadMusic() {
+  const order = ['grief', 'betrayal', 'final', 'end'];
+  order.forEach((k, i) => setTimeout(() => {
+    fetch(TRACKS[k], { cache: 'force-cache' }).catch(() => {});
+  }, 6000 + i * 9000));
+}
+
 function preloadBackgrounds() {
   const names = ['night_field','runway_dusk','morning_base','apron','base_dusk',
-                 'road_eve','road_dusk','road_night','barracks','mess','hq','shelter',
-                 'road_eve_iris','road_dusk_iris','road_night_iris','cry_close'];
+                 'road_eve','road_dusk','barracks','mess','hq','shelter',
+                 'road_eve_iris','road_dusk_iris','road_eve_block','road_eve_alone','cry_close'];
   names.forEach((n, i) => setTimeout(() => {
     const img = new Image();
     img.src = 'assets/bg_' + n + '.jpg';
   }, i * 160));
 }
 
-/* タイトル画面の音楽切り替え */
-document.querySelectorAll('#musicPick button').forEach(b => {
-  b.addEventListener('click', ev => {
-    ev.stopPropagation();
-    A.musicMode = b.dataset.m;
-    document.querySelectorAll('#musicPick button')
-      .forEach(x => x.classList.toggle('on', x === b));
-    try { localStorage.setItem('wif_music', A.musicMode); } catch (e) {}
-  });
-});
-try {
-  const saved = localStorage.getItem('wif_music');
-  if (saved === 'synth' || saved === 'piano') {
-    A.musicMode = saved;
-    document.querySelectorAll('#musicPick button')
-      .forEach(x => x.classList.toggle('on', x.dataset.m === saved));
-  }
-} catch (e) {}
-
 $('startBtn').addEventListener('click', ev => {
   ev.stopPropagation();
   A.init();
   preloadBackgrounds();
+  preloadMusic();
   titleEl.classList.add('off');
   setTimeout(() => { titleEl.style.display = 'none'; }, 1500);
   started = true;

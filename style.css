@@ -8,6 +8,10 @@
   src:url("assets/fonts/cinzel-display.woff2") format("woff2");
   font-weight:400 700;font-style:normal;font-display:swap}
 @font-face{
+  font-family:"WIFHand";
+  src:url("assets/fonts/yomogi-paper.woff2") format("woff2");
+  font-weight:400;font-style:normal;font-display:swap}
+@font-face{
   font-family:"WIFDisplayJP";
   src:url("assets/fonts/shippori-display.woff2") format("woff2");
   font-weight:700;font-style:normal;font-display:swap}
@@ -26,6 +30,7 @@
   --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
   --disp:"WIFDisplay","Hiragino Mincho ProN",serif;
   --dispjp:"WIFDisplayJP","Hiragino Mincho ProN","Yu Mincho",serif;
+  --hand:"WIFHand","Yu Gothic UI",sans-serif;
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
@@ -64,7 +69,6 @@ body{font-family:var(--serif);color:var(--ink)}
 .bg-base_dusk    .pic{background-image:url("assets/bg_base_dusk.jpg")}
 .bg-road_eve     .pic{background-image:url("assets/bg_road_eve.jpg")}
 .bg-road_dusk    .pic{background-image:url("assets/bg_road_dusk.jpg")}
-.bg-road_night   .pic{background-image:url("assets/bg_road_night.jpg")}
 .bg-barracks     .pic{background-image:url("assets/bg_barracks.jpg")}
 .bg-mess         .pic{background-image:url("assets/bg_mess.jpg")}
 .bg-hq           .pic{background-image:url("assets/bg_hq.jpg")}
@@ -72,14 +76,19 @@ body{font-family:var(--serif);color:var(--ink)}
 /* イリスが描き込まれた一枚絵（立ち絵レイヤーは持たない） */
 .bg-road_eve_iris   .pic{background-image:url("assets/bg_road_eve_iris.jpg")}
 .bg-road_dusk_iris  .pic{background-image:url("assets/bg_road_dusk_iris.jpg")}
-.bg-road_night_iris .pic{background-image:url("assets/bg_road_night_iris.jpg")}
 .bg-cry_close       .pic{background-image:url("assets/bg_cry_close.jpg")}
+/* 最後の対面〜見送りは日没前。素の道は road_eve と同じ絵を使い回す */
+.bg-road_set        .pic{background-image:url("assets/bg_road_eve.jpg")}
+.bg-road_eve_block  .pic{background-image:url("assets/bg_road_eve_block.jpg")}
+.bg-road_eve_alone  .pic{background-image:url("assets/bg_road_eve_alone.jpg")}
 
 /* 縦長画面：16:9 を cover すると左右が大きく切れるので、絵ごとに見せたい位置へ寄せる */
 @media (max-aspect-ratio: 1/1){
   .bg-cry_close       .pic{background-position:66% 50%}
   .bg-road_eve_iris   .pic{background-position:32% 50%}
-  .bg-road_night_iris .pic{background-position:36% 50%}
+  .bg-road_eve_alone  .pic{background-position:34% 50%}
+  .bg-road_eve_block  .pic{background-position:46% 50%}
+  .bg-road_set        .pic{background-position:32% 50%}
   .bg-road_dusk_iris  .pic{background-position:50% 50%}
   .bg-apron           .pic{background-position:34% 50%}
   .bg-runway_dusk     .pic{background-position:40% 50%}
@@ -184,12 +193,12 @@ body{font-family:var(--serif);color:var(--ink)}
 #paper{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   opacity:0;pointer-events:none;transition:opacity .9s ease;z-index:5;background:rgba(3,4,6,.55)}
 #paper.on{opacity:1}
-#paperInner{background:#ded4bd;color:#2c2720;padding:36px 40px;max-width:min(78vw,560px);
-  font-size:clamp(14px,3.4vw,19px);line-height:2.1;letter-spacing:.05em;
+#paperInner{background:#ded4bd;color:#33291f;padding:36px 40px;max-width:min(78vw,560px);
+  font-family:var(--hand);font-size:clamp(15px,3.7vw,21px);line-height:2.1;letter-spacing:.04em;
   box-shadow:0 24px 60px rgba(0,0,0,.7);transform:rotate(-1.1deg);
   background-image:linear-gradient(rgba(120,100,70,.09) 1px,transparent 1px);background-size:100% 2.1em}
-#paperInner.note{background:#c9bfa6;padding:30px 34px;transform:rotate(1.4deg);
-  font-family:var(--sans);letter-spacing:.14em;line-height:2.4;text-align:center}
+#paperInner.note{background:#c9bfa6;color:#2a2219;padding:30px 34px;transform:rotate(1.4deg);
+  font-family:var(--hand);letter-spacing:.1em;line-height:2.4;text-align:center}
 #paperInner p{opacity:0;animation:fadein .9s ease forwards}
 #paper.ready::after{content:"▼";position:absolute;right:26px;bottom:22px;
   font-size:13px;color:var(--dim);animation:blink 1.4s ease-in-out infinite}
@@ -233,13 +242,6 @@ body{font-family:var(--serif);color:var(--ink)}
 .ttl-lead{font-size:clamp(13px,3.2vw,16px);line-height:2.1;color:#bdb8b0;margin-bottom:34px}
 .ttl-note{font-family:var(--sans);font-size:clamp(10px,2.4vw,11.5px);line-height:1.9;
   color:#7d7a74;margin-top:30px}
-#musicPick{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:22px;
-  font-family:var(--sans);font-size:12px;color:#8a857d}
-#musicPick span{letter-spacing:.2em;margin-right:4px}
-#musicPick button{font-family:var(--sans);font-size:12px;letter-spacing:.1em;color:#8a857d;
-  background:transparent;border:1px solid var(--line);padding:7px 16px;cursor:pointer;transition:.25s}
-#musicPick button:hover{color:var(--ink)}
-#musicPick button.on{color:#efeae1;border-color:rgba(232,227,218,.6);background:rgba(232,227,218,.08)}
 #startBtn,#replayBtn{font-family:var(--serif);font-size:clamp(15px,3.4vw,18px);letter-spacing:.3em;
   text-indent:.3em;color:var(--ink);background:transparent;border:1px solid var(--line);
   padding:15px 44px;cursor:pointer;transition:.3s}

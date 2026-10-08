@@ -84,15 +84,10 @@ body{font-family:var(--serif);color:var(--ink)}
 .bg-road_set        .pic{background-image:url("assets/bg_road_eve.jpg")}
 .bg-road_eve_block  .pic{background-image:url("assets/bg_road_eve_block.jpg")}
 .bg-road_eve_alone  .pic{background-image:url("assets/bg_road_eve_alone.jpg")}
-/* 離陸後の空。※ 画像生成が使えるようになったら aerial と clouds は描き起こしに差し替える */
-.bg-aerial .pic{background-image:
-  linear-gradient(#263349 0%,#3c4257 18%,#6d5c5c 36%,#a8714f 48%,#c08a55 54%,
-                  #6e5a47 64%,#3f3a33 78%,#232220 90%,#14130f 100%)}
-.bg-cloud  .pic{background-image:
-  radial-gradient(ellipse at 52% 44%,#dfe3e6 0%,#c2c8cd 38%,#a3abb2 72%,#8d959c 100%)}
-.bg-clouds .pic{background-image:
-  linear-gradient(#1d2a40 0%,#33415c 14%,#5a6274 30%,#8a8382 44%,#b08a62 52%,
-                  #8d8075 60%,#5f626b 74%,#3a4150 88%,#222833 100%)}
+/* 離陸後の空 */
+.bg-aerial .pic{background-image:url("assets/bg_aerial.jpg")}
+.bg-cloud  .pic{background-image:url("assets/bg_cloud.jpg")}
+.bg-clouds .pic{background-image:url("assets/bg_clouds.jpg")}
 
 /* 縦長画面：16:9 を cover すると左右が大きく切れるので、絵ごとに見せたい位置へ寄せる */
 @media (max-aspect-ratio: 1/1){
@@ -106,6 +101,7 @@ body{font-family:var(--serif);color:var(--ink)}
   .bg-runway_dusk     .pic{background-position:40% 50%}
   .bg-night_field     .pic{background-position:40% 50%}
   .bg-hq              .pic{background-position:42% 50%}
+  .bg-aerial          .pic{background-position:38% 50%}
 }
 
 @media (prefers-reduced-motion:reduce){

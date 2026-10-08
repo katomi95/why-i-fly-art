@@ -72,7 +72,7 @@ WHY I FIGHT
 ├── story.js            シナリオデータ（全 1017 コマンド）
 ├── script.js           進行エンジン・Web Audio
 └── assets/
-    ├── bg_*.jpg        一枚絵 16 枚（1600x900 / JPEG q86）
+    ├── bg_*.jpg        一枚絵 19 枚（1600x900 / JPEG q86）
     ├── fonts/          表示用フォント（同梱・サブセット済み）
     └── music/          BGM（CC0）5 曲
 ```
@@ -204,5 +204,4 @@ python -m http.server 8232
 （`road_eve_block` / `cry_close` / `road_eve_alone`）。
 夜の道（`road_dusk`）を使うのは DAY4 だけです。
 
-離陸後の空（`aerial` / `cloud` / `clouds`）は、現時点では **CSS のグラデーションによる仮の空**です。
-描き起こしに差し替える前提で、`style.css` の該当クラスを置き換えれば入れ替わります。
+離陸後の空は `aerial`（旋回して眼下の海岸線）/ `cloud`（雲の中）/ `clouds`（雲の上）の 3 枚です。

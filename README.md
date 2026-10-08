@@ -8,7 +8,7 @@
 敗戦間近の、ある架空の国。
 特攻を命じられた十代の少年兵と、それを冷静に否定しつづける女性の、五日間の会話劇。
 
-**プレイ時間：約15〜20分**
+**プレイ時間：約25〜30分**
 HTML / CSS / JavaScript のみ。外部ライブラリなし。PC・スマートフォン対応。
 全16枚の一枚絵は OpenAI の画像生成（gpt-image）で制作しています。
 
@@ -69,7 +69,7 @@ WHY I FIGHT
 .
 ├── index.html          画面構造
 ├── style.css           背景・カメラ・UI・表示用フォント
-├── story.js            シナリオデータ（全 914 コマンド）
+├── story.js            シナリオデータ（全 1017 コマンド）
 ├── script.js           進行エンジン・Web Audio
 └── assets/
     ├── bg_*.jpg        一枚絵 16 枚（1600x900 / JPEG q86）
@@ -203,3 +203,6 @@ python -m http.server 8232
 **最後の対面から見送りまでは日没前の夕景**で統一しています
 （`road_eve_block` / `cry_close` / `road_eve_alone`）。
 夜の道（`road_dusk`）を使うのは DAY4 だけです。
+
+離陸後の空（`aerial` / `cloud` / `clouds`）は、現時点では **CSS のグラデーションによる仮の空**です。
+描き起こしに差し替える前提で、`style.css` の該当クラスを置き換えれば入れ替わります。
